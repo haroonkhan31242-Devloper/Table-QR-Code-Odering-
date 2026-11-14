@@ -163,14 +163,15 @@ export function QrLabelStudio({
       title="QR label studio"
       description={`Branded, print-ready table labels for ${restaurant.name}. The preview is drawn exactly like the download.`}
       footer={
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           {canSaveDefault && (
-            <Button variant="ghost" icon={Save} onClick={saveDefault} disabled={!isDirty} className="sm:mr-auto">
+            <Button variant="ghost" size="sm" icon={Save} onClick={saveDefault} disabled={!isDirty} className="col-span-2 sm:mr-auto sm:h-10">
               Save as default
             </Button>
           )}
           <Button variant="secondary" icon={Layers} loading={busy === 'sheet'} disabled={!assets || !active.length || Boolean(busy)} onClick={downloadSheet}>
-            All tables · A4 PDF
+            <span className="sm:hidden">A4 sheet</span>
+            <span className="hidden sm:inline">All tables · A4 PDF</span>
           </Button>
           <Button variant="secondary" icon={Printer} loading={busy === 'print'} disabled={!spec || Boolean(busy)} onClick={print}>
             Print
@@ -214,7 +215,7 @@ export function QrLabelStudio({
                   value={table?.id ?? ''}
                   onChange={(e) => setTableId(e.target.value)}
                   options={active.map((t) => ({ value: t.id, label: t.label }))}
-                  wrapperClassName="sm:w-40"
+                  wrapperClassName="shrink-0 sm:w-40"
                   className="h-10"
                 />
               )}

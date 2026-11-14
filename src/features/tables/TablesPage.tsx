@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   Ban,
@@ -31,7 +31,8 @@ import type { DiningTable, TableStatus } from '@/src/types/domain';
 import { cn, formatMoney, formatRelative } from '@/src/utils/format';
 import { advanceTableStatus, createTable, deleteTable, updateTable, type TableInput } from './services/tableService';
 import { QrPreview } from '@/src/features/qr-management/components/QrTools';
-import { QrLabelStudio } from '@/src/features/qr-management/components/QrLabelStudio';
+// The label studio (renderer, PDF writer, fonts) loads only when first opened.
+const QrLabelStudio = lazy(() => import('@/src/features/qr-management/components/QrLabelStudio').then((m) => ({ default: m.QrLabelStudio })));
 
 type Filter = 'all' | TableStatus;
 
@@ -96,6 +97,10 @@ export default function TablesPage() {
   const [confirm, setConfirm] = useState<{ kind: 'regen' | 'revoke' | 'delete'; table: DiningTable } | null>(null);
   // Label studio: `null` = closed, '' = opened for all tables, otherwise a table id.
   const [studioFor, setStudioFor] = useState<string | null>(null);
+  const [studioLoaded, setStudioLoaded] = useState(false);
+  useEffect(() => {
+    if (studioFor !== null) setStudioLoaded(true);
+  }, [studioFor]);
 
   const tables = useMemo(
     () => listScoped(db, 'tables', ctx.scope).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })),
@@ -352,14 +357,18 @@ export default function TablesPage() {
         confirmLabel={confirm?.kind === 'regen' ? 'Issue new code' : confirm?.kind === 'revoke' ? 'Revoke code' : 'Delete table'}
       />
 
-      <QrLabelStudio
-        open={studioFor !== null}
-        onClose={() => setStudioFor(null)}
-        restaurant={ctx.restaurant}
-        tables={tables}
-        initialTableId={studioFor || null}
-        canSaveDefault={canQr}
-      />
+      {studioLoaded && (
+        <Suspense fallback={null}>
+          <QrLabelStudio
+            open={studioFor !== null}
+            onClose={() => setStudioFor(null)}
+            restaurant={ctx.restaurant}
+            tables={tables}
+            initialTableId={studioFor || null}
+            canSaveDefault={canQr}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

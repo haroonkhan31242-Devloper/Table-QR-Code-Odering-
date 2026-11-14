@@ -449,6 +449,9 @@ export interface DrawnLabel {
   qr: { x: number; y: number; size: number; modules: number };
   qrInk: string;
   panelColor: string;
+  /** Lowest drawn content edge and the footer's top edge, in output pixels (layout checks). */
+  contentBottom: number;
+  footerTop: number;
 }
 
 export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, widthPx: number): DrawnLabel {
@@ -462,6 +465,8 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
   const shape = qrShapeFor(buildQrUrl(restaurant, table));
   const k = widthPx / W;
   let placed = { x: 0, y: 0, size: 0 };
+  let contentBottom = 0;
+  let footerTop = H;
 
   ctx.save();
   ctx.translate(x, y);
@@ -505,24 +510,21 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
       return { nameY, subY, ornY, pad, panelTop, panel, headingY, instr, instrY, pillCy, contentBottom };
     };
 
-    // Fit the QR to the space: shrink if content would overflow, grow (up to a cap) if there is room.
-    let qrSize = t.id === 'elegant' ? 460 : 500;
+    // Fit the QR to the space: the largest size (up to a cap) whose content stays above the footer.
+    // The quiet zone grows with the QR, so step down until it genuinely fits.
+    const largestFitting = (lines: number) => {
+      let size = maxQr;
+      while (size > minQr && measure(size, lines).contentBottom > bottomLimit) size -= 4;
+      return size;
+    };
     let lines = 2;
+    let qrSize = largestFitting(lines);
     let L = measure(qrSize, lines);
-    const over = L.contentBottom - bottomLimit;
-    if (over !== 0) {
-      qrSize = Math.max(minQr, Math.min(maxQr, qrSize - over));
-      L = measure(qrSize, lines);
-    }
     // Still too tall at the smallest scan-safe QR: keep the instruction to one line.
     if (L.contentBottom > bottomLimit && L.instr.length > 1) {
       lines = 1;
+      qrSize = largestFitting(lines);
       L = measure(qrSize, lines);
-      const room = bottomLimit - L.contentBottom;
-      if (room > 0) {
-        qrSize = Math.min(maxQr, qrSize + room);
-        L = measure(qrSize, lines);
-      }
     }
     // Any space left is split above and below the QR block for optical balance.
     const shift = Math.max(0, bottomLimit - L.contentBottom) / 2;
@@ -543,6 +545,8 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
 
     drawQrPanel(ctx, t, pal, shape, cx - L.panel / 2, L.panelTop + shift, qrSize, L.pad);
     placed = { x: cx - L.panel / 2 + L.pad, y: L.panelTop + shift + L.pad, size: qrSize };
+    contentBottom = L.contentBottom + shift;
+    footerTop = H - 66 - 17;
 
     ctx.fillStyle = t.id === 'luxury' ? pal.accent : pal.ink;
     const hd = fitText(ctx, heading, t.fonts.display, serif ? 600 : 800, t.fonts.headingStyle, serif ? 54 : 52, 34, W - 180);
@@ -580,10 +584,14 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
     else ctx.fillText(nm.text, nameCx, headerCy + 2);
     ctx.textBaseline = 'alphabetic';
 
-    const qrSize = prefs.showTable ? 500 : 540;
+    // Solve for the largest QR that keeps heading + table pill inside the safe area.
+    const panelTop = 196;
+    const safeBottom = 1000 - 56;
+    const tail = 76 + (prefs.showTable ? 62 + 27 : 10);
+    let qrSize = prefs.showTable ? 520 : 560;
+    while (qrSize > 360 && panelTop + qrSize + 2 * quietPad(t, qrSize / shape.modules) + tail > safeBottom) qrSize -= 4;
     const pad = quietPad(t, qrSize / shape.modules);
     const panel = qrSize + pad * 2;
-    const panelTop = 196;
     drawQrPanel(ctx, t, pal, shape, cx - panel / 2, panelTop, qrSize, pad);
     placed = { x: cx - panel / 2 + pad, y: panelTop + pad, size: qrSize };
 
@@ -593,6 +601,7 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
     ctx.font = font(t.fonts.headingStyle, serif ? 600 : 800, hd.size, t.fonts.display);
     ctx.fillText(hd.text, cx, headingY);
     if (prefs.showTable) drawPill(ctx, t, pal, tableText, cx, headingY + 62, 54, 23);
+    contentBottom = prefs.showTable ? headingY + 62 + 27 : headingY + 10;
   }
 
   ctx.restore();
@@ -600,6 +609,8 @@ export function drawLabel(ctx: Ctx, spec: LabelSpec, x: number, y: number, width
     qr: { x: x + placed.x * k, y: y + placed.y * k, size: placed.size * k, modules: shape.modules },
     qrInk: pal.qrInk,
     panelColor: pal.panel,
+    contentBottom: y + contentBottom * k,
+    footerTop: y + footerTop * k,
   };
 }
 
