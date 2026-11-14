@@ -1,0 +1,6 @@
+{
+  "name": "TableCraft — Multi-Tenant Restaurant & QR Ordering SaaS",
+  "description": "Multi-tenant restaurant management platform with Super Admin console, configurable staff permissions, dynamic waiter order approval, mobile-first QR ordering, Kitchen Display System, Cashier POS and reports. Frontend-only prototype using LocalStorage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

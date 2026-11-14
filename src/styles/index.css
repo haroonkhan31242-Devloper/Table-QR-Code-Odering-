@@ -1,0 +1,232 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ */
+/* Design tokens — semantic, theme-aware                               */
+/* ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #f2f0eb;
+  --surface-3: #e9e6df;
+  --line: #e6e2da;
+  --line-strong: #d4cfc5;
+  --ink: #1b1916;
+  --ink-2: #3c3832;
+  --muted: #6b645b;
+  --brand: #c93f15;
+  --brand-hover: #b3370f;
+  --brand-ink: #ffffff;
+  --brand-strong: #b0390f;
+  --brand-soft: #fcebe3;
+  --success: #15784a;
+  --success-soft: #e2f3e9;
+  --warning: #9a5806;
+  --warning-soft: #fcf0d9;
+  --danger: #c4261e;
+  --danger-soft: #fce6e3;
+  --info: #1d5dc0;
+  --info-soft: #e3ecfb;
+  --violet: #6a3dc4;
+  --violet-soft: #eee7fb;
+  --overlay: rgb(20 18 15 / 0.45);
+  --shadow-sm: 0 1px 2px rgb(27 25 22 / 0.05);
+  --shadow-md: 0 1px 2px rgb(27 25 22 / 0.04), 0 6px 18px -6px rgb(27 25 22 / 0.1);
+  --shadow-lg: 0 2px 6px rgb(27 25 22 / 0.05), 0 24px 48px -16px rgb(27 25 22 / 0.22);
+  --tenant: var(--brand);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0e0d0c;
+  --surface: #171614;
+  --surface-2: #1e1c19;
+  --surface-3: #292622;
+  --line: #2a2824;
+  --line-strong: #3a3732;
+  --ink: #f4f2ee;
+  --ink-2: #d5d1ca;
+  --muted: #a39d94;
+  --brand: #ff6a3d;
+  --brand-hover: #ff8059;
+  --brand-ink: #1c0a03;
+  --brand-strong: #ff8b66;
+  --brand-soft: rgb(255 106 61 / 0.14);
+  --success: #4ade80;
+  --success-soft: rgb(74 222 128 / 0.12);
+  --warning: #fbbf24;
+  --warning-soft: rgb(251 191 36 / 0.12);
+  --danger: #f87171;
+  --danger-soft: rgb(248 113 113 / 0.13);
+  --info: #60a5fa;
+  --info-soft: rgb(96 165 250 / 0.13);
+  --violet: #a78bfa;
+  --violet-soft: rgb(167 139 250 / 0.14);
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px -10px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 2px 8px rgb(0 0 0 / 0.4), 0 28px 56px -18px rgb(0 0 0 / 0.75);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-tenant: var(--tenant);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --font-display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --radius-card: 1rem;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button,
+  [role="button"],
+  a,
+  label[for],
+  summary {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  input[type="number"]::-webkit-inner-spin-button {
+    opacity: 0.4;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  .grain {
+    background-image: radial-gradient(circle at 1px 1px, rgb(127 117 104 / 0.14) 1px, transparent 0);
+    background-size: 18px 18px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+.pulse-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Printing — only the element marked .print-area is printed           */
+/* ------------------------------------------------------------------ */
+.print-area {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 10mm;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+  .print-area {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
