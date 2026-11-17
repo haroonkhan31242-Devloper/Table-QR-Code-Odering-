@@ -174,7 +174,7 @@ export default function DashboardPage() {
           <CardHeader
             title="Recent transactions"
             icon={Receipt}
-            action={can(ctx.user, 'cashier.view') ? <Link to="/portal/cashier" className="text-[13px] font-semibold text-brand-strong hover:underline">Cashier</Link> : undefined}
+            action={can(ctx.user, 'cashier.view') ? <Link to="/portal/pos" className="text-[13px] font-semibold text-brand-strong hover:underline">Open POS</Link> : undefined}
           />
           {data.payments.length ? (
             <ul className="divide-y divide-line p-3">

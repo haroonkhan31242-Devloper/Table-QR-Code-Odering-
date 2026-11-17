@@ -8,7 +8,7 @@ import {
   Settings,
   UtensilsCrossed,
   Users,
-  Wallet,
+  Store,
   type LucideIcon,
 } from 'lucide-react';
 import type { Permission } from '@/src/constants/permissions';
@@ -27,7 +27,8 @@ export const PORTAL_MODULES: PortalModule[] = [
   { path: 'orders', label: 'Orders', icon: ClipboardList, permission: 'orders.view', section: 'Service' },
   { path: 'kitchen', label: 'Kitchen display', icon: ChefHat, permission: 'kitchen.view', section: 'Service' },
   { path: 'tables', label: 'Tables & QR', icon: QrCode, permission: 'tables.view', section: 'Service' },
-  { path: 'cashier', label: 'Cashier', icon: Wallet, permission: 'cashier.view', section: 'Service' },
+  // Replaces the old Cashier module; the Cashier *role* is unchanged and gets POS access by default.
+  { path: 'pos', label: 'POS', icon: Store, permission: 'cashier.view', section: 'Service' },
   { path: 'menu', label: 'Menu', icon: UtensilsCrossed, permission: 'menu.view', section: 'Manage' },
   { path: 'staff', label: 'Staff & access', icon: Users, permission: 'staff.view', section: 'Manage' },
   { path: 'settings', label: 'Settings', icon: Settings, permission: 'settings.view', section: 'Manage' },

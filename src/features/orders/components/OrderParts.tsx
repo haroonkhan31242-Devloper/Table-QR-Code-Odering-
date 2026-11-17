@@ -4,6 +4,7 @@ import type { Order, OrderLine } from '@/src/types/domain';
 import { ORDER_STATUS, PAYMENT_STATUS } from '@/src/constants/status';
 import { StatusBadge } from '@/src/components/ui/Display';
 import { cn, formatDateTime, formatMoney, formatTime } from '@/src/utils/format';
+import { OrderOriginBadges } from './OrderOriginBadges';
 
 export function OrderLines({ lines, showPrices = true, dense }: { lines: OrderLine[]; showPrices?: boolean; dense?: boolean }) {
   return (
@@ -69,6 +70,7 @@ export function OrderTimeline({ order }: { order: Order }) {
 export function OrderMeta({ order, className }: { order: Order; className?: string }) {
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
+      <OrderOriginBadges order={order} />
       <StatusBadge meta={ORDER_STATUS[order.status]} />
       {order.status !== 'rejected' && <StatusBadge meta={PAYMENT_STATUS[order.paymentStatus]} />}
       <span className="inline-flex items-center gap-1 text-[12.5px] text-muted">

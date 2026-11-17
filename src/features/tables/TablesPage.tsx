@@ -111,12 +111,13 @@ export default function TablesPage() {
     const m = new Map<string, { count: number; due: number }>();
     orders
       // "Open" = not rejected and either still in progress or not yet paid.
-      .filter((o) => o.status !== 'rejected' && (o.paymentStatus === 'unpaid' || o.status !== 'served'))
+      .filter((o) => o.tableId && o.status !== 'rejected' && (o.paymentStatus === 'unpaid' || o.status !== 'served'))
       .forEach((o) => {
-        const e = m.get(o.tableId) ?? { count: 0, due: 0 };
+        const tableId = o.tableId as string; // takeaway orders (no table) are excluded above
+        const e = m.get(tableId) ?? { count: 0, due: 0 };
         e.count += 1;
         if (o.paymentStatus === 'unpaid' && o.status !== 'pending_approval') e.due += o.total;
-        m.set(o.tableId, e);
+        m.set(tableId, e);
       });
     return m;
   }, [orders]);

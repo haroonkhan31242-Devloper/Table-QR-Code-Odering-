@@ -19,7 +19,7 @@ const DashboardPage = lazy(() => import('@/src/features/dashboard/DashboardPage'
 const OrdersPage = lazy(() => import('@/src/features/orders/OrdersPage'));
 const KitchenPage = lazy(() => import('@/src/features/kitchen/KitchenPage'));
 const TablesPage = lazy(() => import('@/src/features/tables/TablesPage'));
-const CashierPage = lazy(() => import('@/src/features/cashier/CashierPage'));
+const PosPage = lazy(() => import('@/src/features/pos/PosPage'));
 const MenuPage = lazy(() => import('@/src/features/menu/MenuPage'));
 const StaffPage = lazy(() => import('@/src/features/staff/StaffPage'));
 const SettingsPage = lazy(() => import('@/src/features/settings/SettingsPage'));
@@ -75,7 +75,9 @@ export default function App() {
                     <Route path="orders" element={<RequirePermission permission="orders.view"><OrdersPage /></RequirePermission>} />
                     <Route path="kitchen" element={<RequirePermission permission="kitchen.view"><KitchenPage /></RequirePermission>} />
                     <Route path="tables" element={<RequirePermission permission="tables.view"><TablesPage /></RequirePermission>} />
-                    <Route path="cashier" element={<RequirePermission permission="cashier.view"><CashierPage /></RequirePermission>} />
+                    <Route path="pos" element={<RequirePermission permission="cashier.view"><PosPage /></RequirePermission>} />
+                    {/* Old Cashier module links keep working. */}
+                    <Route path="cashier" element={<Navigate to="/portal/pos" replace />} />
                     <Route path="menu" element={<RequirePermission permission="menu.view"><MenuPage /></RequirePermission>} />
                     <Route path="staff" element={<RequirePermission permission="staff.view"><StaffPage /></RequirePermission>} />
                     <Route path="settings" element={<RequirePermission permission="settings.view"><SettingsPage /></RequirePermission>} />

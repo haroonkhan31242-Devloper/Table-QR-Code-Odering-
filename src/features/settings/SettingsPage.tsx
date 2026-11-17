@@ -142,7 +142,7 @@ export default function SettingsPage() {
                 onChange={(v) => setOrdering({ ...ordering, showSoldOutItems: v })}
               />
             </div>
-            <Input label="Service charge" type="number" min={0} max={25} step={0.5} suffix="%" disabled={!editable} value={ordering.serviceChargePercent} onChange={(e) => setOrdering({ ...ordering, serviceChargePercent: Number(e.target.value) })} hint="Added to each new order. Taxes are not configured (PRD OD-07)." />
+            <Input label="Service charge" type="number" min={0} max={25} step={0.5} suffix="%" disabled={!editable} value={ordering.serviceChargePercent} onChange={(e) => setOrdering({ ...ordering, serviceChargePercent: Number(e.target.value) })} hint="Added to dine-in orders (QR and POS). Takeaway orders are exempt. Taxes are not configured (PRD OD-07)." />
             <Input label="Receipt footer" maxLength={120} disabled={!editable} value={ordering.receiptFooter} onChange={(e) => setOrdering({ ...ordering, receiptFooter: e.target.value })} />
             {editable && (
               <div className="flex justify-end gap-2 border-t border-line pt-4">

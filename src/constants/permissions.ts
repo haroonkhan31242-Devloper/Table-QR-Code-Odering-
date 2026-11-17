@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   'menu.products',
   'menu.availability',
   'cashier.view',
+  'pos.order',
   'cashier.collect',
   'cashier.reprint',
   'reports.view',
@@ -117,11 +118,18 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    id: 'cashier',
-    label: 'Cashier & billing',
+    // Keys keep their original `cashier.*` names so existing staff accounts stay valid.
+    id: 'pos',
+    label: 'POS',
     permissions: [
-      { key: 'cashier.view', label: 'View bills', description: 'Open individual and combined table bills.' },
-      { key: 'cashier.collect', label: 'Collect cash', description: 'Record Cash at Counter payments.', requires: ['cashier.view'] },
+      { key: 'cashier.view', label: 'View POS', description: 'Open the POS, open bills, receipts and order tracking.' },
+      {
+        key: 'pos.order',
+        label: 'Create POS orders',
+        description: 'Ring up dine-in and takeaway orders that go straight to the kitchen.',
+        requires: ['cashier.view'],
+      },
+      { key: 'cashier.collect', label: 'Collect payments', description: 'Record Cash at Counter payments (pay now or later).', requires: ['cashier.view'] },
       { key: 'cashier.reprint', label: 'Reprint receipts', description: 'Reprint receipts (logged).', requires: ['cashier.view'] },
     ],
   },
@@ -168,7 +176,7 @@ export const ROLE_DESCRIPTIONS: Record<StaffRoleKey, string> = {
   manager: 'Runs daily operations with delegated authority.',
   waiter: 'Table service; can approve orders if explicitly authorised.',
   kitchen: 'Prepares orders on the kitchen display.',
-  cashier: 'Handles bills and Cash at Counter payments.',
+  cashier: 'Runs the POS: dine-in and takeaway orders and cash payments.',
 };
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRoleKey, Permission[]> = {
@@ -187,6 +195,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRoleKey, Permission[]> = {
     'menu.products',
     'menu.availability',
     'cashier.view',
+    'pos.order',
     'cashier.collect',
     'cashier.reprint',
     'reports.view',
@@ -198,7 +207,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRoleKey, Permission[]> = {
   ],
   waiter: ['orders.view', 'orders.serve', 'tables.view', 'tables.status', 'menu.view'],
   kitchen: ['kitchen.view', 'kitchen.decide', 'kitchen.status', 'menu.view', 'menu.availability'],
-  cashier: ['orders.view', 'tables.view', 'cashier.view', 'cashier.collect', 'cashier.reprint'],
+  cashier: ['orders.view', 'tables.view', 'cashier.view', 'pos.order', 'cashier.collect', 'cashier.reprint'],
 };
 
 /** Normalise a permission list for a role: drop unknown / role-restricted keys and add prerequisites. */

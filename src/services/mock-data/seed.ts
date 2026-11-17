@@ -26,7 +26,7 @@ import { issueQrToken } from '@/src/services/qr/qrService';
 import { logActivity } from '@/src/services/audit/activityService';
 import { DEMO_FOOD_ASSETS as IMG } from './demoAssets';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 function prng(seed: number) {
   let s = seed >>> 0;
@@ -480,36 +480,52 @@ export function buildSeedDatabase(now = new Date()): Database {
       });
     };
 
-    const makeOrder = (table: DiningTable, at: Date, status: Order['status']): Order => {
+    type Kind = 'qr' | 'pos-dine' | 'pos-takeaway';
+    const makeOrder = (table: DiningTable | null, at: Date, status: Order['status'], kind: Kind = 'qr'): Order => {
       const lines = makeLines();
+      const pos = kind !== 'qr';
+      const takeaway = kind === 'pos-takeaway' || !table;
       const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
-      const serviceCharge = Math.round((subtotal * seed.serviceCharge) / 100);
+      // Service charge applies to table service only (same rule as the POS service).
+      const serviceCharge = takeaway ? 0 : Math.round((subtotal * seed.serviceCharge) / 100);
+      const needsApproval = !pos && seed.approval;
       const iso = at.toISOString();
       const order: Order = {
         id: createId('ord'),
         ...scope,
         number: `${prefix}-${orderSeq++}`,
-        tableId: table.id,
-        tableNumber: table.number,
-        tableLabel: table.label,
-        qrToken: table.qrToken,
+        source: pos ? 'pos' : 'qr',
+        type: takeaway ? 'takeaway' : 'dine_in',
+        tableId: takeaway ? null : table!.id,
+        tableNumber: takeaway ? '' : table!.number,
+        tableLabel: takeaway ? 'Takeaway' : table!.label,
+        qrToken: pos || takeaway ? '' : table!.qrToken,
+        createdBy: pos ? { id: cashier.id, name: cashier.name } : undefined,
         clientRequestId: randomToken(),
         lines,
         subtotal,
         serviceCharge,
         total: subtotal + serviceCharge,
         status,
-        approvalRequired: seed.approval,
+        approvalRequired: needsApproval,
         paymentMethod: 'cash_at_counter',
         paymentStatus: 'unpaid',
         history: [
-          {
-            status: seed.approval ? 'pending_approval' : 'new',
-            label: seed.approval ? 'Submitted — awaiting waiter approval' : 'Submitted — sent to kitchen',
-            actorName: `${table.label} guest`,
-            actorRole: 'Customer',
-            at: iso,
-          },
+          pos
+            ? {
+                status: 'new',
+                label: `Created at POS (${takeaway ? 'takeaway' : table!.label}) — sent to kitchen`,
+                actorName: cashier.name,
+                actorRole: ROLE_LABELS[cashier.role],
+                at: iso,
+              }
+            : {
+                status: needsApproval ? 'pending_approval' : 'new',
+                label: needsApproval ? 'Submitted — awaiting waiter approval' : 'Submitted — sent to kitchen',
+                actorName: `${table!.label} guest`,
+                actorRole: 'Customer',
+                at: iso,
+              },
         ],
         createdAt: iso,
         updatedAt: iso,
@@ -522,14 +538,14 @@ export function buildSeedDatabase(now = new Date()): Database {
       };
       const flow: Order['status'][] = ['new', 'preparing', 'ready', 'completed', 'served'];
       const target = flow.indexOf(status);
-      if (seed.approval && status !== 'pending_approval' && approver) {
+      if (needsApproval && status !== 'pending_approval' && approver) {
         const t = step('new', 'Approved — sent to kitchen', approver, 2);
         order.approvedBy = { id: approver.id, name: approver.name, at: t };
       }
       if (target >= 1) step('preparing', 'Accepted — preparing', chef, 4);
       if (target >= 2) step('ready', 'Ready at the pass', chef, 16);
       if (target >= 3) step('completed', 'Completed by kitchen', chef, 18);
-      if (target >= 4) step('served', 'Served to table', waiter, 21);
+      if (target >= 4) step('served', takeaway ? 'Handed to customer' : 'Served to table', takeaway ? cashier : waiter, 21);
       return order;
     };
 
@@ -542,6 +558,7 @@ export function buildSeedDatabase(now = new Date()): Database {
         ...scope,
         receiptNumber: `RC-${prefix}-${receiptSeq++}`,
         billType,
+        orderType: orders[0].type,
         tableId: orders[0].tableId,
         tableLabel: orders[0].tableLabel,
         orderIds: orders.map((o) => o.id),
@@ -582,7 +599,9 @@ export function buildSeedDatabase(now = new Date()): Database {
         at.setHours(12 + Math.floor(rand() * 10), Math.floor(rand() * 60), 0, 0);
         const table = pick(tables);
         const isRejected = rand() < 0.04;
-        const order = makeOrder(table, at, isRejected ? 'rejected' : 'served');
+        const channel = rand();
+        const kind: Kind = channel < 0.12 ? 'pos-takeaway' : channel < 0.2 ? 'pos-dine' : 'qr';
+        const order = makeOrder(kind === 'pos-takeaway' ? null : table, at, isRejected ? 'rejected' : 'served', kind);
         if (isRejected) {
           const t = new Date(at.getTime() + 5 * 60000).toISOString();
           order.rejection = { stage: 'kitchen', reason: 'Item ran out during service', byName: chef.name, at: t };
@@ -596,7 +615,8 @@ export function buildSeedDatabase(now = new Date()): Database {
 
     // Today: a realistic live service snapshot.
     const today = (minsAgo: number) => new Date(now.getTime() - minsAgo * 60000);
-    const live: Array<[number, Order['status'], number]> =
+    // [table index (-1 = takeaway), status, minutes ago, channel]
+    const live: Array<[number, Order['status'], number, Kind?]> =
       seed.key === 'ke'
         ? [
             [0, 'served', 190],
@@ -607,6 +627,8 @@ export function buildSeedDatabase(now = new Date()): Database {
             [4, 'new', 6],
             [6, 'pending_approval', 3],
             [6, 'pending_approval', 1],
+            [-1, 'preparing', 7, 'pos-takeaway'],
+            [-1, 'completed', 16, 'pos-takeaway'],
           ]
         : seed.key === 'sc'
           ? [
@@ -619,11 +641,11 @@ export function buildSeedDatabase(now = new Date()): Database {
               [2, 'ready', 15],
             ];
     const occupied = new Set<number>();
-    live.forEach(([tableIdx, status, minsAgo], i) => {
-      const table = tables[tableIdx];
-      const order = makeOrder(table, today(minsAgo), status);
+    live.forEach(([tableIdx, status, minsAgo, kind], i) => {
+      const table = tableIdx >= 0 ? tables[tableIdx] : null;
+      const order = makeOrder(table, today(minsAgo), status, kind ?? 'qr');
       if (status === 'served' && i < 2) pay([order], today(Math.max(1, minsAgo - 60)), 'individual');
-      if (status !== 'served') occupied.add(tableIdx);
+      if (status !== 'served' && tableIdx >= 0) occupied.add(tableIdx);
       history.push(order);
     });
 

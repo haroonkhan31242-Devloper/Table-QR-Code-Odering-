@@ -194,6 +194,10 @@ export type OrderStatus =
   | 'rejected';
 
 export type PaymentMethod = 'cash_at_counter' | 'online_payment' | 'credit_card';
+/** Where an order was created: guest QR scan, or staff at the POS. */
+export type OrderSource = 'qr' | 'pos';
+/** Dine-in orders belong to a table; takeaway orders have none. */
+export type OrderType = 'dine_in' | 'takeaway';
 export type PaymentStatus = 'unpaid' | 'paid';
 
 export interface OrderLine {
@@ -224,10 +228,18 @@ export interface Order {
   businessId: string;
   restaurantId: string;
   number: string;
-  tableId: string;
+  source: OrderSource;
+  type: OrderType;
+  /** Null for takeaway orders. */
+  tableId: string | null;
+  /** Empty for takeaway orders. */
   tableNumber: string;
+  /** Display label: "Table 04" or "Takeaway". */
   tableLabel: string;
+  /** Token of the scanned QR (QR orders only; empty for POS orders). */
   qrToken: string;
+  /** Staff member who created a POS order. */
+  createdBy?: { id: string; name: string };
   clientRequestId: string;
   lines: OrderLine[];
   customerNote?: string;
@@ -252,7 +264,9 @@ export interface Payment {
   restaurantId: string;
   receiptNumber: string;
   billType: 'individual' | 'combined_table';
-  tableId: string;
+  orderType: OrderType;
+  /** Null when the bill is for a takeaway order. */
+  tableId: string | null;
   tableLabel: string;
   orderIds: string[];
   orderNumbers: string[];

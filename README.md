@@ -1,6 +1,6 @@
 # TableCraft — Multi-Tenant Restaurant & QR Ordering SaaS
 
-A frontend-only prototype of a multi-restaurant SaaS: Super Admin console, restaurant portal (owner, manager, waiter, kitchen, cashier), mobile-first QR table ordering, optional waiter approval, kitchen display, cashier/POS, menu management and reports.
+A frontend-only prototype of a multi-restaurant SaaS: Super Admin console, restaurant portal (owner, manager, waiter, kitchen, cashier), mobile-first QR table ordering, optional waiter approval, kitchen display, POS (dine-in and takeaway, cash payments), menu management and reports.
 
 **Everything runs in the browser.** LocalStorage is the temporary database. There is no backend, API or payment gateway.
 
@@ -39,7 +39,7 @@ After changing `.env`, open **Super Admin → Data & system → Reset demo data*
 src/
 ├── app/            routes, layouts (portal / admin shells), providers
 ├── features/       authentication, landing, super-admin, dashboard, orders,
-│                   kitchen, tables, qr-management, cashier, menu, staff,
+│                   kitchen, tables, qr-management, pos, menu, staff,
 │                   settings, reports, customer-menu  (each owns its UI + services)
 ├── components/     ui (primitives) · shared (brand, image uploader) · feedback (toast, errors)
 ├── services/       storage (versioned DB + tenant-scoped CRUD), authentication,

@@ -10,10 +10,11 @@ import type { Database } from '@/src/types/domain';
 import { buildSeedDatabase } from '@/src/services/mock-data/seed';
 import { AppError, isQuotaError } from './errors';
 
-export const SCHEMA_VERSION = 3;
-export const DB_KEY = 'tablecraft:db:v3';
-/** v2 stored the business key as `tenantId`; v3 calls it `businessId`. */
-const V2_KEY = 'tablecraft:db:v2';
+export const SCHEMA_VERSION = 4;
+export const DB_KEY = `tablecraft:db:v${SCHEMA_VERSION}`;
+const keyFor = (version: number) => `tablecraft:db:v${version}`;
+/** Exact copy of the data as it was before the last schema upgrade (for rollback). */
+export const PRE_UPGRADE_BACKUP_KEY = 'tablecraft:db:pre-upgrade-backup';
 const LEGACY_KEYS = ['tablecraft_saas_db_v1', 'tablecraft_saas_session_v1'];
 const CORRUPT_BACKUP_KEY = 'tablecraft:db:corrupt-backup';
 const ACTIVITY_CAP = 1500;
@@ -69,34 +70,88 @@ function seedFresh(): Database {
   return seed;
 }
 
-/** Carry v2 data forward by renaming every `tenantId` field to `businessId`. Nothing else changes. */
-function migrateFromV2(store: Storage): Database | null {
-  const raw = store.getItem(V2_KEY);
-  if (!raw) return null;
-  try {
-    const old = JSON.parse(raw) as Record<string, unknown>;
-    const renamed = JSON.parse(raw, function (key, value) {
+type RawDb = Record<string, unknown> & { schemaVersion?: number };
+type RawRecord = Record<string, unknown>;
+
+/**
+ * Forward-only schema upgrades, applied in order. Each step only ADDS or
+ * RENAMES fields — nothing is deleted — and the untouched original is kept in
+ * PRE_UPGRADE_BACKUP_KEY so an upgrade can be rolled back.
+ */
+const UPGRADES: Record<number, (db: RawDb) => RawDb> = {
+  // v2 → v3: the business key was called `tenantId`; it is now `businessId`.
+  2: (db) =>
+    JSON.parse(JSON.stringify(db), function (_key, value) {
       if (value && typeof value === 'object' && !Array.isArray(value) && 'tenantId' in value) {
-        const { tenantId, ...rest } = value as Record<string, unknown>;
+        const { tenantId, ...rest } = value as RawRecord;
         return { businessId: tenantId, ...rest };
       }
       return value;
-    }) as Database;
-    renamed.schemaVersion = SCHEMA_VERSION;
-    if (old.schemaVersion !== 2 || !isValidDatabase(renamed)) return null;
-    persist(renamed);
-    store.removeItem(V2_KEY);
-    return renamed;
-  } catch {
-    return null;
+    }),
+  // v3 → v4: POS module. Every existing order came from a QR scan at a table.
+  3: (db) => {
+    const orders = (db.orders as RawRecord[]).map((o) => ({ ...o, source: o.source ?? 'qr', type: o.type ?? 'dine_in' }));
+    const payments = (db.payments as RawRecord[]).map((p) => ({ ...p, orderType: p.orderType ?? 'dine_in' }));
+    // New permission "Create POS orders": granted to accounts that already run
+    // the counter (cashiers and managers with billing access). Nothing is removed.
+    const staff = (db.staff as RawRecord[]).map((s) => {
+      const perms = (s.permissions as string[]) ?? [];
+      const runsCounter = (s.role === 'cashier' || s.role === 'manager') && perms.includes('cashier.view');
+      return runsCounter && !perms.includes('pos.order') ? { ...s, permissions: [...perms, 'pos.order'] } : s;
+    });
+    return { ...db, orders, payments, staff };
+  },
+};
+
+/** Upgrade the newest older-version document found, if any. */
+function migrateFromOlder(store: Storage): Database | null {
+  for (let from = SCHEMA_VERSION - 1; from >= 2; from--) {
+    const raw = store.getItem(keyFor(from));
+    if (!raw) continue;
+    try {
+      let db = JSON.parse(raw) as RawDb;
+      if (db.schemaVersion !== from) return null;
+      for (let v = from; v < SCHEMA_VERSION; v++) {
+        db = UPGRADES[v](db);
+        db.schemaVersion = v + 1;
+      }
+      if (!isValidDatabase(db)) return null;
+      try {
+        store.setItem(PRE_UPGRADE_BACKUP_KEY, raw);
+      } catch {
+        /* backup is best-effort if storage is nearly full */
+      }
+      persist(db);
+      store.removeItem(keyFor(from));
+      return db;
+    } catch {
+      return null;
+    }
   }
+  return null;
+}
+
+/**
+ * Roll back the last schema upgrade by restoring the pre-upgrade copy.
+ * Anything created after the upgrade (e.g. POS orders) is not carried back.
+ */
+export function restorePreUpgradeBackup(): boolean {
+  const store = storage();
+  const raw = store.getItem(PRE_UPGRADE_BACKUP_KEY);
+  if (!raw) return false;
+  const version = (JSON.parse(raw) as RawDb).schemaVersion;
+  if (!version || version >= SCHEMA_VERSION) return false;
+  store.setItem(keyFor(version), raw);
+  store.removeItem(DB_KEY);
+  cache = null;
+  return true;
 }
 
 function load(): Database {
   const store = storage();
   const raw = store.getItem(DB_KEY);
   if (!raw) {
-    const migrated = migrateFromV2(store);
+    const migrated = migrateFromOlder(store);
     if (migrated) return migrated;
     // Safe initialisation: seed ONLY when nothing exists yet.
     LEGACY_KEYS.forEach((k) => store.removeItem(k));

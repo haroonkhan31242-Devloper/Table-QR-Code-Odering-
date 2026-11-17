@@ -44,7 +44,7 @@ export function orderPrefix(name: string): string {
   );
 }
 
-function nextOrderNumber(db: Database, restaurant: Restaurant): string {
+export function nextOrderNumber(db: Database, restaurant: Restaurant): string {
   const prefix = orderPrefix(restaurant.name);
   const max = db.orders
     .filter((o) => o.restaurantId === restaurant.id)
@@ -72,6 +72,45 @@ export interface SubmitOrderInput {
   paymentMethod: Order['paymentMethod'];
 }
 
+/**
+ * Authoritative line pricing shared by QR and POS orders: products must belong
+ * to this restaurant and be available, options must still exist, and prices
+ * always come from the menu — never from the client.
+ */
+export function resolveOrderLines(db: Database, restaurant: Restaurant, lines: CartLineInput[]): OrderLine[] {
+  return lines.map((l) => {
+    const product = db.products.find(
+      (p) => p.id === l.productId && p.restaurantId === restaurant.id && p.businessId === restaurant.businessId
+    );
+    if (!product) throw fail.validation('An item in your cart is no longer on the menu. Please review your cart.');
+    if (!product.isAvailable) throw fail.validation(`“${product.title}” just sold out. Please remove it from your cart.`);
+    const variant = l.variantId ? product.variants.find((v) => v.id === l.variantId) : undefined;
+    if (l.variantId && !variant) throw fail.validation(`An option for “${product.title}” changed. Please re-add it.`);
+    const addons = l.addonIds.map((id) => {
+      const a = product.addons.find((x) => x.id === id);
+      if (!a) throw fail.validation(`An add-on for “${product.title}” changed. Please re-add it.`);
+      return { name: a.name, price: a.price };
+    });
+    const quantity = Math.round(Number(l.quantity));
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) throw fail.validation('Quantities must be between 1 and 50.');
+    // Authoritative pricing from the restaurant's own menu, never from the client.
+    const unitPrice = product.price + (variant?.price ?? 0) + addons.reduce((s, a) => s + a.price, 0);
+    return {
+      id: createId('line'),
+      productId: product.id,
+      title: product.title,
+      image: product.image,
+      basePrice: product.price,
+      variant: variant ? { name: variant.name, price: variant.price } : undefined,
+      addons,
+      unitPrice,
+      quantity,
+      note: l.note?.trim().slice(0, 140) || undefined,
+      lineTotal: unitPrice * quantity,
+    };
+  });
+}
+
 /** Public (no login) — identity comes only from the validated QR token. */
 export function submitCustomerOrder(input: SubmitOrderInput): Order {
   if (input.paymentMethod !== 'cash_at_counter') {
@@ -95,37 +134,7 @@ export function submitCustomerOrder(input: SubmitOrderInput): Order {
     const existing = db.orders.find((o) => o.restaurantId === restaurant.id && o.clientRequestId === input.clientRequestId);
     if (existing) return existing;
 
-    const lines: OrderLine[] = input.lines.map((l) => {
-      const product = db.products.find(
-        (p) => p.id === l.productId && p.restaurantId === restaurant.id && p.businessId === restaurant.businessId
-      );
-      if (!product) throw fail.validation('An item in your cart is no longer on the menu. Please review your cart.');
-      if (!product.isAvailable) throw fail.validation(`“${product.title}” just sold out. Please remove it from your cart.`);
-      const variant = l.variantId ? product.variants.find((v) => v.id === l.variantId) : undefined;
-      if (l.variantId && !variant) throw fail.validation(`An option for “${product.title}” changed. Please re-add it.`);
-      const addons = l.addonIds.map((id) => {
-        const a = product.addons.find((x) => x.id === id);
-        if (!a) throw fail.validation(`An add-on for “${product.title}” changed. Please re-add it.`);
-        return { name: a.name, price: a.price };
-      });
-      const quantity = Math.round(Number(l.quantity));
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) throw fail.validation('Quantities must be between 1 and 50.');
-      // Authoritative pricing from the restaurant's own menu, never from the client.
-      const unitPrice = product.price + (variant?.price ?? 0) + addons.reduce((s, a) => s + a.price, 0);
-      return {
-        id: createId('line'),
-        productId: product.id,
-        title: product.title,
-        image: product.image,
-        basePrice: product.price,
-        variant: variant ? { name: variant.name, price: variant.price } : undefined,
-        addons,
-        unitPrice,
-        quantity,
-        note: l.note?.trim().slice(0, 140) || undefined,
-        lineTotal: unitPrice * quantity,
-      };
-    });
+    const lines = resolveOrderLines(db, restaurant, input.lines);
 
     const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
     const serviceCharge = Math.round((subtotal * restaurant.settings.serviceChargePercent) / 100);
@@ -138,6 +147,8 @@ export function submitCustomerOrder(input: SubmitOrderInput): Order {
       id: createId('ord'),
       ...scope,
       number: nextOrderNumber(db, restaurant),
+      source: 'qr',
+      type: 'dine_in',
       tableId: table.id,
       tableNumber: table.number,
       tableLabel: table.label,

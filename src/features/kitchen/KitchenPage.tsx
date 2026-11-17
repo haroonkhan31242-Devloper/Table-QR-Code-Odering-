@@ -12,6 +12,7 @@ import type { Order, OrderStatus } from '@/src/types/domain';
 import { cn, formatRelative, minutesSince } from '@/src/utils/format';
 import { acceptKitchenOrder, advanceKitchenOrder, rejectKitchenOrder } from '@/src/features/orders/services/orderService';
 import { OrderLines } from '@/src/features/orders/components/OrderParts';
+import { OrderOriginBadges } from '@/src/features/orders/components/OrderOriginBadges';
 
 const COLUMNS: Array<{ status: OrderStatus; title: string; icon: typeof BellRing; accent: string }> = [
   { status: 'new', title: 'New', icon: BellRing, accent: 'text-info bg-info-soft' },
@@ -126,7 +127,13 @@ export default function KitchenPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-display text-[22px] font-bold leading-none text-ink">{o.tableLabel}</p>
-                          <p className="mt-1.5 text-[12.5px] text-muted">{o.number}{o.approvedBy ? ` · approved by ${o.approvedBy.name}` : ''}</p>
+                          <p className="mt-1.5 text-[12.5px] text-muted">
+                            {o.number}
+                            {o.approvedBy ? ` · approved by ${o.approvedBy.name}` : o.source === 'pos' && o.createdBy ? ` · POS by ${o.createdBy.name}` : ''}
+                          </p>
+                          {(o.type === 'takeaway' || o.source === 'pos') && (
+                            <div className="mt-2 flex flex-wrap gap-1.5"><OrderOriginBadges order={o} /></div>
+                          )}
                         </div>
                         <span
                           className={cn(

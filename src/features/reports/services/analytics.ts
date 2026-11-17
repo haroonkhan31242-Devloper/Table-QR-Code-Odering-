@@ -134,6 +134,26 @@ export function categoryPerformance(orders: Order[], products: Product[], catego
   return rows.sort((a, b) => b.revenue - a.revenue);
 }
 
+/** Orders and paid revenue by channel: guest QR vs staff POS (dine-in / takeaway). */
+export function channelBreakdown(orders: Order[], from: number) {
+  const rows = [
+    { id: 'qr', label: 'QR · dine-in', match: (o: Order) => o.source === 'qr' },
+    { id: 'pos_dine_in', label: 'POS · dine-in', match: (o: Order) => o.source === 'pos' && o.type === 'dine_in' },
+    { id: 'pos_takeaway', label: 'POS · takeaway', match: (o: Order) => o.source === 'pos' && o.type === 'takeaway' },
+  ];
+  const inPeriod = orders.filter((o) => o.status !== 'rejected' && inRange(o.createdAt, from));
+  return rows.map((r) => {
+    const list = inPeriod.filter(r.match);
+    return {
+      id: r.id,
+      label: r.label,
+      orders: list.length,
+      revenue: list.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + o.total, 0),
+      unpaid: list.filter((o) => o.paymentStatus === 'unpaid').length,
+    };
+  });
+}
+
 export function paymentMethodTotals(payments: Payment[], from: number) {
   const cash = payments.filter((p) => inRange(p.paidAt, from));
   return [

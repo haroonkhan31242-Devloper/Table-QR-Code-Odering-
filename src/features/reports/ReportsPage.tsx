@@ -13,6 +13,7 @@ import { formatCompactMoney, formatMoney, formatNumber, formatRelative } from '@
 import {
   RANGE_LABELS,
   categoryPerformance,
+  channelBreakdown,
   dailySeries,
   downloadText,
   paymentMethodTotals,
@@ -45,6 +46,7 @@ export default function ReportsPage() {
       series: dailySeries(orders, payments, SERIES_DAYS[range]),
       statuses: statusBreakdown(orders, from),
       methods: paymentMethodTotals(payments, from),
+      channels: channelBreakdown(orders, from),
       popular: popularProducts(orders, from, 8),
       categories: categoryPerformance(orders, listScoped(db, 'products', ctx.scope), listScoped(db, 'categories', ctx.scope), from),
       tables: tableActivity(listScoped(db, 'tables', ctx.scope), orders, listScoped(db, 'activity', ctx.scope), from),
@@ -159,6 +161,28 @@ export default function ReportsPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader title="Order channels" description="Guest QR orders vs orders rung up at the POS (excludes rejected)" />
+        <div className="grid gap-3 p-5 sm:grid-cols-3">
+          {r.channels.map((c) => {
+            const totalOrders = r.channels.reduce((s, x) => s + x.orders, 0);
+            const share = totalOrders ? Math.round((c.orders / totalOrders) * 100) : 0;
+            return (
+              <div key={c.id} className="rounded-2xl border border-line p-4">
+                <p className="text-[13px] font-medium text-muted">{c.label}</p>
+                <p className="tabular mt-1 font-display text-[24px] font-bold text-ink">{c.orders}</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${share}%` }} />
+                </div>
+                <p className="mt-2 text-[12.5px] text-muted">
+                  {share}% of orders · {formatCompactMoney(c.revenue)} paid{c.unpaid ? ` · ${c.unpaid} unpaid` : ''}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

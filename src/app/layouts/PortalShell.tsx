@@ -42,7 +42,7 @@ export function PortalShell() {
     if (!counts) return {};
     if (path === 'orders') return { badge: counts.pendingApproval || counts.toServe, badgeTone: counts.pendingApproval ? 'warning' : 'brand' };
     if (path === 'kitchen') return { badge: counts.kitchenNew };
-    if (path === 'cashier') return { badge: counts.unpaid };
+    if (path === 'pos') return { badge: counts.unpaid };
     return {};
   };
 
@@ -107,6 +107,8 @@ export function RequirePermission({ permission, children }: { permission: Permis
 export function PortalHome({ dashboard }: { dashboard: React.ReactNode }) {
   const ctx = usePortal();
   if (can(ctx.user, 'dashboard.view')) return <>{dashboard}</>;
+  // Counter staff (e.g. cashiers) start on the POS, their main workspace.
+  if (can(ctx.user, 'pos.order')) return <Navigate to={portalPath('pos')} replace />;
   const first = PORTAL_MODULES.find((m) => m.path && can(ctx.user, m.permission));
   return <Navigate to={first ? portalPath(first.path) : '/portal/account'} replace />;
 }
